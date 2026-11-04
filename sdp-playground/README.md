@@ -2,7 +2,7 @@
 
 A [uv](https://docs.astral.sh/uv/)-managed Python project for learning and
 experimenting with [Spark Declarative Pipelines (SDP)](https://spark.apache.org/docs/latest/declarative-pipelines-programming-guide.html)
-on PySpark **4.1.1**.
+on PySpark **4.2.1**.
 
 ## Layout
 
@@ -24,8 +24,11 @@ sdp-playground/
 
 ## Requirements
 
-- Python 3.10+
-- Java 17 (PySpark 4.1.1 requirement)
+The root [Nix + direnv development shell](../README.md#development-shell-nix--direnv)
+provides these tools automatically. For a manual setup:
+
+- Python 3.14+
+- Java 17 or later
 - [uv](https://docs.astral.sh/uv/)
 
 ## Setup
@@ -37,8 +40,29 @@ cd sdp-playground
 uv sync
 ```
 
-This installs `pyspark[pipelines]==4.1.1` along with `pytest` and `pytest-cov`
-into a local `.venv/`.
+This installs `pyspark[pipelines]==4.2.1` along with `pytest` and `pytest-cov`
+into a local `.venv/`. It also installs the project's `lib` package in editable
+mode, so both the SDP CLI and tests can import the shared transforms regardless
+of their working directory. No `PYTHONPATH` override is needed.
+
+The pandas dependency is constrained to `>=2.3.3,<3`: this provides Python 3.14
+wheels while staying within Spark's supported pandas versions.
+
+### VS Code
+
+Open the repository root (`learning-spark-sdp`) in VS Code. The checked-in
+workspace settings point Python and the recommended `astral-sh.ty` extension at
+`sdp-playground/.venv/bin/python`; run `just sync` first to create that environment.
+
+Install the recommended **ty** VS Code extension (`astral-sh.ty`) from the
+Extensions panel. The extension uses ty from this project's dev dependencies.
+To check from the repository root, run `uv run --project sdp-playground ty check --project sdp-playground .`.
+
+If VS Code already remembers another interpreter, press **Ctrl+Shift+P**, run
+**Python: Select Interpreter**, choose **Enter interpreter path...**, and select
+`sdp-playground/.venv/bin/python`. This is a one-time step because VS Code keeps
+existing selections instead of overriding them with the workspace default.
+Run **Developer: Reload Window** to restart the extensions with these settings.
 
 ## Running the example pipeline
 
@@ -69,6 +93,30 @@ uv run spark-pipelines run
 > **Note:** The `storage` field in `spark-pipeline.yml` must be an absolute URI
 > (`file://`, `s3a://`, `hdfs://`, …). Update it if you clone this repo to a
 > different path.
+
+## SQL linting and formatting
+
+`just sync` installs SQLFluff and sqlfmt (`shandy-sqlfmt`) as project dev
+dependencies. Both are configured in `pyproject.toml`:
+
+- SQLFluff uses the `sparksql` dialect and the raw templater for SDP SQL files.
+- sqlfmt uses its Spark-compatible `polyglot` dialect and an 88-character line
+  length. SQLFluff's capitalization and layout rules are aligned with sqlfmt.
+
+SQL keywords, unquoted identifiers, function names, types, and boolean/null
+literals use **lowercase**. String contents and quoted identifiers retain their
+case.
+
+From the repository root:
+
+```bash
+just fix         # Ruff fixes/formatting, SQLFluff fixes, sqlfmt, then SQL lint
+just sql-format  # format all SQL under example_pipeline in place
+just sql-lint    # lint SQL without changing files
+just sql-check   # lint and check formatting (suitable for CI)
+```
+
+Use `sql-format` for formatting; `sql-check` reports any remaining lint issues.
 
 ## Running the tests
 
